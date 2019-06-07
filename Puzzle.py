@@ -1,370 +1,320 @@
 """
-# File:     FifteenPuzzle.py
-# Author:   Zeeshan Karim
-# Date:     4/16/2017
-# Course:   TCSS 435 - Artificial Intelligence
-# Purpose:  15 slide puzzle solver, using 6 different search methods
-#           Reports statistics when a solution is found
-# Usage:    Program accepts command line arguments in format:
-#           "[initialstate]" [searchmethod] [options]
-#               - initialstate must contain all characters:
-#                   "123456789ABCDEF " in any order
-#               - searchmethod can be any of the following:
-#                   BFS, DFS, DLS, ID, GBFS, AStar
-#               - options can be any of the following:
-#                   int value for DLS
-#                   'h1' or 'h2' for GBFS or AStar
-# Output:   Prints statistics when solution found in format:
-#               [depth], [numCreated], [numExpanded], [maxFringe]
-#           Prints "-1, 0, 0, 0" if solution cannot be found
+# File:     Puzzle.py
+# Author:   Hop Pham
+# Version:     4/28/2019
+# Purpose:  Create a set of	search algorithms that find	goalStates to the 15-puzzle
 """
 
 import sys
 from copy import deepcopy
+			
+class DataUtility:    
+    def __init__(self,initialState):
+        self.queue = []
+        self.visisted = []
+        self.initialState = initialState
+        self.queue.append(initialState)
+        self.stack = self.queue
+        self.priority = None
+        self.numCreated = 0
+        self.numExpanded = 0
+        self.maxFringe = 0
+        self.depth = -1
+    def setPriority(self,heuristic):
+        self.queue = PriorityQ()
+        if heuristic == 'h1':
+            self.priority = self.initialState.countMisplaced()
+        elif heuristic == 'h2':
+            self.priority = self.initialState.sumDistFromGoal()
+    def __repr__(self): 
+        if self.depth == -1:
+            self.numCreated = self.numExpanded = self.maxFringe = 0
+        return '%d, %d, %d, %d' % (self.depth, self.numCreated, self.numExpanded, self.maxFringe)
 
-solution = ['1', '2', '3', '4', 
-            '5', '6', '7', '8', 
-            '9', 'A', 'B', 'C', 
-            'D', 'E', 'F', ' ']
-
-expandOrder = ['RIGHT', 'DOWN', 'LEFT', 'UP']
-
-# Statistics variables
-class Statistics:
-    depth = -1
-    nCreated = 0
-    nExpanded = 0
-    maxFringe = 0
-    
-    def __str__(self): return '%d, %d, %d, %d' % (self.depth, self.nCreated, self.nExpanded, self.maxFringe)    
-
-# Priority queue implementation for GBFS and AStar
-class pQueue:
-    nodeQueue = []
-    weightQueue = []
+# PriorityQ for GBFS and AStar
+class PriorityQ:
+    def __init__(self): 
+        self.nodes = []
+        self.weight = [] 	
+		
     def __len__(self):
-        return len(self.nodeQueue)
-    
-    def __str__(self):
-        out = ''
-        out += '--------------------\n'
-        for i in range(len(self.nodeQueue)):
-            out += str(self.weightQueue[i]) + '\n' + str(self.nodeQueue[i])
-        out += '--------------------\n'
-        return out
-        
-    def pop(self):
-        if self.nodeQueue:
-            self.weightQueue.pop(0)
-            return self.nodeQueue.pop(0)
-    
-    def put(self, weight, node):
-        for i in range(len(self.nodeQueue)):
-            if weight < self.weightQueue[i]:
-                self.weightQueue.insert(i, weight)
-                self.nodeQueue.insert(i, node)
+        return len(self.nodes)
+		
+    def delete(self):
+        if self.nodes:
+            self.weight.pop(0)
+            return self.nodes.pop(0)
+    def peak(self):
+        if self.nodes:
+            return self.nodes.peak()
+    def insert(self, weight, node):
+        for i in range(len(self.nodes)):
+            if weight < self.weight[i]:
+                self.weight.insert(i, weight)
+                self.nodes.insert(i, node)
                 return
-        self.weightQueue.append(weight)
-        self.nodeQueue.append(node)
+        self.weight.append(weight)
+        self.nodes.append(node)    
+    
+    def __repr__(self):
+        result = '\n'
+        for i in range(len(self.nodes)):
+            result += str(self.weight[i]) + '\n' + str(self.nodes[i])
+        return result
 
-#Puzzle board class
-class Puzzle:
-
-    state = []
-    blankIndex = None
+#Puzzle class
+class Puzzle:    
+    arr = []
+    blankPosition = None
     depth = None
-    
-    def __init__(self, initial):
-        self.state = list(initial)
+    goalState = []
+    def __init__(self, initialState):
+        self.arr = list(initialState)
         self.depth = 0
-        self.blankIndex = self.state.index(' ')
-        
-    def __eq__(self, x):
-        return self.state == x.state
+        self.blankPosition = self.arr.index(' ')
+        self.goalState = ['1', '2', '3', '4', 
+                     '5', '6', '7', '8', 
+                     '9', 'A', 'B', 'C', 
+                     'D', 'E', 'F', ' ']
+        self.goalState2 = ['1', '2', '3', '4', 
+                     '5', '6', '7', '8', 
+                     '9', 'A', 'B', 'C', 
+                     'D', 'F', 'E', ' ']
+        if set(self.arr) != set(self.goalState):
+            print 'Invalid puzzle!'
+            sys.exit(-1)
+    def __eq__(self, other):
+        return self.arr == other.arr
     
-    def __str__(self):
-        out = ''
+    def __repr__(self):
+        result = ''
         for i in range(4):
-            out += str(self.state[(i*4):((i+1)*4)])
-            out += "\n"
-        return out
+            result += str(self.arr[(i*4):((i+1)*4)])
+            result += "\n"
+        return result
         
-    def isSolved(self):
-        # Determines if a solution has been reached
-        # Ignores elements 13 and 14 to accommodate unsolvable puzzles
-        s1 = self.state[0:12] == solution[0:12]
-        s2 = self.state[15] == solution[15]
-        return s1 and s2
+    def isReachGoal(self):
+        return self.arr[0:12] == self.goalState[0:12] and self.arr[15] == self.goalState[15] or self.arr[0:12] == self.goalState2[0:12] and self.arr[15] == self.goalState2[15]
     
-    def getSuccessors(self):
-        # Returns any possible successor states in a list
-        successors = []
-        for direction in expandOrder:
-            successor = None
-            if direction == 'RIGHT' and self.blankIndex % 4 < 3:
-                successor = deepcopy(self)
-                target = self.blankIndex + 1
+    def getSuccessor(self):
+        successor = []
+        for direction in ['Right', 'Down', 'Left', 'Up']:
+            succe = None
+            if direction == 'Left' and self.blankPosition % 4 > 0:
+                succe = deepcopy(self)
+                blank = self.blankPosition - 1
+				
+            if direction == 'Right' and self.blankPosition % 4 < 3:
+                succe = deepcopy(self)
+                blank = self.blankPosition + 1
                     
-            if direction == 'DOWN' and self.blankIndex < 12:
-                successor = deepcopy(self)
-                target = self.blankIndex + 4
-                
-            if direction == 'LEFT' and self.blankIndex % 4 > 0:
-                successor = deepcopy(self)
-                target = self.blankIndex - 1
-
-            if direction == 'UP' and self.blankIndex > 3:
-                successor = deepcopy(self)
-                target = self.blankIndex - 4
+            if direction == 'Up' and self.blankPosition > 3:
+                succe = deepcopy(self)
+                blank = self.blankPosition - 4
+				
+            if direction == 'Down' and self.blankPosition < 12:
+                succe = deepcopy(self)
+                blank = self.blankPosition + 4
             
-            if successor:
-                successor.depth += 1        
-                successor.state[successor.blankIndex] = successor.state[target]
-                successor.state[target] = ' '
-                successor.blankIndex = target
-                successors.append(successor)
-        return successors
+            if succe:
+                succe.depth += 1        
+                succe.arr[succe.blankPosition] = succe.arr[blank]
+                succe.arr[blank] = ' '
+                succe.blankPosition = blank
+                successor.append(succe)
+        return successor
 
-    def nIncorrect(self):
-        # Heuristic for number of incorrect tiles
+    def countMisplaced(self):
+        # h for number of misplaced tiles
         n = 0
-        for index, tile in enumerate(self.state):
-            if tile != solution[index]: n += 1
+        for index, tile in enumerate(self.arr):
+            if tile != self.goalState[index] or tile != self.goalState2[index]: n += 1
         return n
     
-    def manhattanSum(self):
-        # Heuristic for sum of Manhattan distance to solution
+    def sumDistFromGoal(self):
+        # h for sum of distance to goalState
         mSum = 0
-        for tileIndex, tile in enumerate(self.state):
-            solIndex = solution.index(tile);
+        for tileIndex, tile in enumerate(self.arr):
+            solIndex = self.goalState.index(tile);
             vDistance = abs(solIndex/4 - tileIndex/4)
             hDistance = abs(solIndex%4 - tileIndex%4)
             mSum += vDistance + hDistance
         return mSum
-
-''' SEARCH ALGORITHMS '''
-def solveBFS(start):
-    #Nodes to be expanded are queued FIFO
-    stats = Statistics()
-    queue = []
-    done = []
-    queue.append(start)
-
-    while queue:
-        current = queue.pop(0)
-        if current.isSolved():
-            stats.depth = current.depth
-            return stats
-        stats.nExpanded += 1
-        done.append(current)
-        successors = current.getSuccessors()
-        for successor in successors:
-            if successor not in done:
-                stats.nCreated += 1
-                queue.append(successor)
-                if len(queue) > stats.maxFringe:
-                    stats.maxFringe = len(queue)
-    return Statistics() # No Solution, return default statistics
+		
+def searchMethodBFS(initialState):
+    #used queue to expanded nodes
+    data = DataUtility(initialState)
+    while data.queue:
+        current = data.queue.pop(0)
+        if current.isReachGoal():
+            data.depth = current.depth
+            return data
+        data.numExpanded += 1
+        data.visisted.append(current)
+        successor = current.getSuccessor()
+        for succe in successor:
+            if succe not in data.visisted:
+                data.numCreated += 1
+                data.queue.append(succe)
+                if len(data.queue) > data.maxFringe:
+                    data.maxFringe = len(data.queue)
+    return data
+    
+def searchMethodDLS(initialState, maxDepth):
+    data = DataUtility(initialState)
+    while data.stack:
+        current = data.stack.pop()
+        if current.isReachGoal():
+            data.depth = current.depth
+            return data
+        data.numExpanded += 1
+        data.visisted.append(current)
+        successor = current.getSuccessor()
+        for succe in successor:
+            if succe not in data.visisted and succe.depth <= int(maxDepth):
+                data.numCreated += 1
+                data.stack.append(succe)
+                if len(data.stack) > data.maxFringe:
+                    data.maxFringe = len(data.stack)
+    return data
                     
-def solveDFS(start):
-    # Identical to BFS except nodes to be expanded are queued LIFO
-    stats = Statistics()
-    stack = []
-    done = []
-    stack.append(start)
-
-    while stack:
-        current = stack.pop()
-        if current.isSolved():
-            stats.depth = current.depth
-            return stats
-        stats.nExpanded += 1
-        done.append(current)
-        successors = current.getSuccessors()
-        for successor in successors:
-            if successor not in done:
-                stats.nCreated += 1
-                stack.append(successor)
-                if len(stack) > stats.maxFringe:
-                    stats.maxFringe = len(stack)
-    return Statistics() # No Solution, return default statistics
-    
-def solveDLS(start, maxDepth):
-    # Identical to DFS except nodes are limited to max depth set by user
-    stats = Statistics()
-    stack = []
-    done = []
-    stack.append(start)
-
-    while stack:
-        current = stack.pop()
-        if current.isSolved():
-            stats.depth = current.depth
-            return stats
-        stats.nExpanded += 1
-        done.append(current)
-        successors = current.getSuccessors()
-        for successor in successors:
-            if successor not in done and successor.depth <= int(maxDepth):
-                stats.nCreated += 1
-                stack.append(successor)
-                if len(stack) > stats.maxFringe:
-                    stats.maxFringe = len(stack)
-    return Statistics() # No Solution, return default statistics
-    
-def solveID(start):
-    # Identical to DFS with iterative deepening implemented
-    # Depth limited to 100 in case solution cannot be found
-    stats = Statistics()
-    stack = []
-    done = []
-    stack.append(start)
+def searchMethodDFS(initialState):
+    #used stack to expanded nodes
+    data = DataUtility(initialState)
+    while data.stack:
+        current = data.stack.pop()
+        data.stack.append(current)
+        if current.isReachGoal():
+            data.depth = current.depth
+            return data
+        data.numExpanded += 1
+        data.visisted.append(current)
+        successor = current.getSuccessor()
+        for succe in successor:
+            if succe not in data.visisted:
+                data.numCreated += 1
+                data.stack.append(succe)
+                if len(data.stack) > data.maxFringe:
+                    data.maxFringe = len(data.stack)
+        #if data.numCreated > 3000:
+        #    print "The numCreated is exceed 3000"
+        #    sys.exit(-1)
+    return data #default stats
+	
+def searchMethodID(initialState):    
+    data = DataUtility(initialState)
     maxDepth = 0
-    while maxDepth < 100:
-        while stack:
-            current = stack.pop()
-            if current.isSolved():
-                stats.depth = current.depth
-                return stats
-            stats.nExpanded += 1
-            done.append(current)
-            successors = current.getSuccessors()
-            for successor in successors:
-                if successor not in done and successor.depth <= maxDepth:
-                    stats.nCreated += 1
-                    stack.append(successor)
-                    if len(stack) > stats.maxFringe:
-                        stats.maxFringe = len(stack)
+    while maxDepth < 50: # Depth limit to reach the goal state
+        while data.stack:
+            current = data.stack.pop()
+            if current.isReachGoal():
+                data.depth = current.depth
+                return data
+            data.numExpanded += 1
+            data.visisted.append(current)
+            successor = current.getSuccessor()
+            for succe in successor:
+                if succe not in data.visisted and succe.depth <= maxDepth:
+                    data.numCreated += 1
+                    data.stack.append(succe)
+                    if len(data.stack) > data.maxFringe:
+                        data.maxFringe = len(data.stack)
         maxDepth += 1
-        stack.append(start)
-        done = []
-    return Statistics() # No Solution, return default statistics
+        data.stack.append(data.initialState)
+        data.visisted = []
+    return data
 
-def solveGBFS(start, heuristic):
-    # Nodes are queued by priority determined by user selected heuristic
-    stats = Statistics()
-    queue = pQueue()
-    done = []
-    priority = None
+def searchMethodGBFS(initialState, heuristic):
+    data = DataUtility(initialState)
+    data = DataUtility(initialState)
+    data.setPriority(heuristic)
+    data.queue.insert(data.priority, data.initialState)
 
-    if heuristic == 'h1':
-        priority = start.nIncorrect()
-    elif heuristic == 'h2':
-        priority = start.manhattanSum()
-    
-    queue.put(priority, start)
-
-    while queue:
-        current = queue.pop()
-        if current.isSolved():
-            stats.depth = current.depth
-            return stats
-        stats.nExpanded += 1
-        done.append(current)
-        successors = current.getSuccessors()
-        for successor in successors:
-            if successor not in done:
-                stats.nCreated += 1
+    while data.queue:
+        current = data.queue.delete()
+        if current.isReachGoal():
+            data.depth = current.depth
+            return data
+        data.numExpanded += 1
+        data.visisted.append(current)
+        successor = current.getSuccessor()
+        for succe in successor:
+            if succe not in data.visisted:
+                data.numCreated += 1
                 if heuristic == 'h1':
-                    priority = successor.nIncorrect()
+                    data.priority = succe.countMisplaced()
                 elif heuristic == 'h2':
-                    priority = successor.manhattanSum()
-                queue.put(priority, successor)
-                if len(queue) > stats.maxFringe:
-                    stats.maxFringe = len(queue)
-    return Statistics() # No Solution, return default statistics
+                    data.priority = succe.sumDistFromGoal()
+                data.queue.insert(data.priority, succe)
+                if len(data.queue) > data.maxFringe:
+                    data.maxFringe = len(data.queue)
+    return data
 
-def solveAStar(start, heuristic):
-    # Nodes are queued by priority determined by depth and user selected heuristic
-    stats = Statistics()
-    queue = pQueue()
-    done = []
-    priority = None
-
-    if heuristic == 'h1':
-        priority = start.nIncorrect()
-    elif heuristic == 'h2':
-        priority = start.manhattanSum()
-    queue.put(priority + start.depth, start)
-
-    while queue:
-        current = queue.pop()
-        if current.isSolved():
-            stats.depth = current.depth
-            return stats
-        done.append(current)
-        stats.nExpanded += 1
-        successors = current.getSuccessors()
-        for successor in successors:
+def searchMethodAStar(initialState, heuristic):
+    data = DataUtility(initialState)
+    data.setPriority(heuristic)
+    data.queue.insert(data.priority + data.initialState.depth, data.initialState)
+	
+    while data.queue:
+        current = data.queue.delete()
+        if current.isReachGoal():
+            data.depth = current.depth
+            return data
+        data.visisted.append(current)
+        data.numExpanded += 1
+        successor = current.getSuccessor()
+        for succe in successor:
             if heuristic == 'h1':
-                priority = successor.nIncorrect()
+                data.priority = succe.countMisplaced()
             elif heuristic == 'h2':
-                priority = successor.manhattanSum()
-            if successor not in done:
-                stats.nCreated += 1
-                queue.put(priority + successor.depth, successor)
-                if len(queue) > stats.maxFringe:
-                    stats.maxFringe = len(queue)
-            elif done[done.index(successor)].depth > successor.depth:
-                done[done.index(successor)].depth = successor.depth
-                queue.put(priority + successor.depth, successor)
+                data.priority = succe.sumDistFromGoal()
+            if succe not in data.visisted:
+                data.numCreated += 1
+                data.queue.insert(data.priority + succe.depth, succe)
+                if len(data.queue) > data.maxFringe:
+                    data.maxFringe = len(data.queue)
+            elif data.visisted[data.visisted.index(succe)].depth > succe.depth:
+                data.visisted[data.visisted.index(succe)].depth = succe.depth
+                data.queue.insert(data.priority + succe.depth, succe)
                 
-    return Statistics() # No Solution, return default statistics  
-
-if __name__ == '__main__':
+    return data 
+	
+def unity(args):
+    initialState = ''
+    searchMethod = ''
+    result = ''
+    options = ''
     
-    start = None
-    solveWith = None
-    heuristic = None
-    stats = None
-    
-    # Accept console inputs and check for invalid inputs
-    if len(sys.argv) in range(3, 5):
-        start = Puzzle(sys.argv[1])
-        solveWith = sys.argv[2]
-        if len(sys.argv) == 4:
-            heuristic = sys.argv[3]
+    # checks valid for input tokens
+    if len(args) in range(3, 5):
+        initialState = Puzzle(args[1])        		
+        searchMethod = args[2]
+        if len(args) > 3:
+            options = args[3]            
     else:
-        print "Invalid input"
-        sys.exit(-1)
+        print "Input is not valid!"
+        sys.exit(-1)		
 
-    if sorted(start.state) != sorted(solution):
-        print 'Invalid puzzle'
-        sys.exit(-1)
-    
-    if solveWith == 'DLS' and not int(heuristic):
-        print 'Invalid depth, DLS requires an int depth'
-        sys.exit(-1)
-        
-    elif solveWith == 'GBFS' or solveWith == 'AStar':
-        if heuristic != 'h1' and heuristic != 'h2':
-            print 'Invalid heuristic, GBFS and AStar only accept heuristics h1 and h2'
+    if searchMethod == 'BFS':
+        result = searchMethodBFS(initialState)        
+    elif searchMethod == 'DFS':
+        result = searchMethodDFS(initialState)        
+    elif searchMethod == 'DLS':
+        if options == '' or not int(options):
+            print 'Please input an integer depth for DLS!'
             sys.exit(-1)
-    
-    
-    # Select search method
-    if solveWith == 'BFS':
-        stats = solveBFS(start)
-        
-    elif solveWith == 'DFS':
-        stats = solveDFS(start)
-        
-    elif solveWith == 'DLS':
-        stats = solveDLS(start, heuristic)
-        
-    elif solveWith == 'ID':
-        stats = solveID(start)
-    
-    elif solveWith == 'GBFS':
-        stats = solveGBFS(start, heuristic)
-        
-    elif solveWith == 'AStar':
-        stats = solveAStar(start, heuristic)
-        
+        result = searchMethodDLS(initialState, options)        
+    elif searchMethod == 'ID':
+        result = searchMethodID(initialState)    
+    elif searchMethod == 'GBFS' and (options == 'h1' or options == 'h2'):
+        result = searchMethodGBFS(initialState,options)        
+    elif searchMethod == 'AStar' and (options == 'h1' or options == 'h2'):
+        result = searchMethodAStar(initialState,options)        
     else:
         print 'Invalid search method'
         sys.exit(-1)
-    
-    print stats
-    
-    
+		
+    return result
+
+if __name__ == '__main__':
+    print unity(sys.argv)    
