@@ -1,72 +1,144 @@
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.*;  
+
 /**
- * @author Hop N Pham
+ * @author Tony
  * 
- * Pentago game board class. 
- * Controlls states and moving.
+ * This class is the game board of the Pentago game. It is where
+ * the state of the board is held, pieces are placed, future
+ * placements are looked into, and heuristic scores are tallied
+ * up.  
  */
 public class GameBoard {
-	public char myStateBoard[][];
-	public int myHeuristic;		
-	public char playerColor;
-	public char player_Tow_Color;	
+	char myState[][];			//the current state of the game board
+	int myHeuristic;			//the heuristic score of current player
+	boolean isGameOver;				
+	private String previousMove;	
+	public char player1color;
+	public char player2color;
 	
 	/**
-	 * Initializes the state of 2D array game board.
+	 * Constructor that initializes the state of the 2D
+	 * array that is a 6x6 playing board.
 	 */
 	public GameBoard() {
-		myStateBoard = new char[6][6];
+		myState = new char[6][6];
 	}
 	
 	/**
-	 * Set the location that a player moved 
-	 * @param row location.
-	 * @param col location.
-	 * @param color 'W' or 'B'.
+	 * Constructor takes a 2D array as an argument in case
+	 * developer wants to construct a preset board.
+	 * @param moves
 	 */
-	public void addToBoard(int row, int col, char color) {
-		this.myStateBoard[row][col] = color;
-	}	
+	public GameBoard(char[][] moves) {
+		myState = new char[6][6];
+		for (int i = 0; i < 6; i++) {
+			for (int j = 0; j < 6; j++) {
+				myState[i][j] = moves[i][j];
+			}
+		}
+	}
+	
+	
+	public boolean getIsGameOver() {
+		return isGameOver;
+	}
+
+	public String getPreviousMove() {
+		return previousMove;
+	}
+
+	public void setPreviousMove(String previousMove) {
+		this.previousMove = previousMove;
+	}
+
+	public char getPlayer1color() {
+		return player1color;
+	}
+
+	public void setPlayer1color(char player1color) {
+		this.player1color = player1color;
+	}
+
+	public char getPlayer2color() {
+		return player2color;
+	}
+
+	public void setPlayer2color(char player2color) {
+		this.player2color = player2color;
+	}
+
+	public char[][] getMyState() {
+		return myState;
+	}
+
+	public void setMyState(char[][] myState) {
+		this.myState = myState;
+	}
+
+	public int getMyHeuristic() {
+		return myHeuristic;
+	}
+
+	public void setMyHeuristic(int myHeuristic) {
+		this.myHeuristic = myHeuristic;
+	}
 	
 	/**
-	 * Rotate block clockwise 3 time to get counterclockwise. 
-	 * @param blockNum the block will rotate.
+	 * This method rotates one of the quadrants clockwise.  The blockNum
+	 * parameter determines which of the four quadrants gets rotated.
+	 * 
+	 * @param blockNum the quadrant that will rotate.
+	 */
+	public void rotateClockwise(int blockNum) {
+		char temp;
+		int offsetRow = 0, offsetCol = 0;
+		if (blockNum == 2) {
+			offsetCol = 3;
+		} else if(blockNum == 3) {
+			offsetRow = 3;
+		} else if(blockNum == 4) {
+			offsetRow = 3;
+			offsetCol = 3;
+		}
+		temp = myState[0 + offsetRow][0 + offsetCol];
+		myState[0 + offsetRow][0 + offsetCol] = myState[2 + offsetRow][0 + offsetCol];
+		myState[2 + offsetRow][0 + offsetCol] = myState[2 + offsetRow][2 + offsetCol];
+		myState[2 + offsetRow][2 + offsetCol] = myState[0 + offsetRow][2 + offsetCol];
+		myState[0 + offsetRow][2 + offsetCol] = temp;
+		temp = myState[0 + offsetRow][1 + offsetCol];
+		myState[0 + offsetRow][1 + offsetCol] = myState[1 + offsetRow][0 + offsetCol];
+		myState[1 + offsetRow][0 + offsetCol] = myState[2 + offsetRow][1 + offsetCol];
+		myState[2 + offsetRow][1 + offsetCol] = myState[1 + offsetRow][2 + offsetCol];
+		myState[1 + offsetRow][2 + offsetCol] = temp;
+		
+	}
+	
+	/**
+	 * This method rotates one of the quadrants counter-clockwise. The
+	 * blockNum parameter determines which of the four quadrants gets 
+	 * rotated.
+	 * 
+	 * @param blockNum the quadrant that will rotate.
 	 */
 	public void rotateCounterClockwise(int blockNum) {
 		rotateClockwise(blockNum);
 		rotateClockwise(blockNum);
-		rotateClockwise(blockNum);		
+		rotateClockwise(blockNum);
 	}
 	
 	/**
-	 * Rotate a block 90 degree clockwise.
-	 * @param theBlock the block that will rotate.
+	 * This method places a player's piece at a specific location on the
+	 * game board.  
+	 * 
+	 * @param row the row of target location.
+	 * @param col the column of target location.
+	 * @param playerColor the piece that is being placed. Either 'w' or 'b'.
 	 */
-	public void rotateClockwise(int theBlock) {
-		char temp;
-		int offsetRow = 0, offsetCol = 0; //default for block 1
-		switch (theBlock) {
-			case 2: offsetCol = 3; break;
-			case 3: offsetRow = 3; break;
-			case 4: offsetRow = 3; offsetCol = 3; break;
-			default: break;
-		}
-
-		temp = myStateBoard[offsetRow][offsetCol]; //move corner around
-		myStateBoard[offsetRow][offsetCol] = myStateBoard[2 + offsetRow][offsetCol];
-		myStateBoard[2 + offsetRow][offsetCol] = myStateBoard[2 + offsetRow][2 + offsetCol];
-		myStateBoard[2 + offsetRow][2 + offsetCol] = myStateBoard[offsetRow][2 + offsetCol];
-		myStateBoard[offsetRow][2 + offsetCol] = temp;
-		temp = myStateBoard[offsetRow][1 + offsetCol]; //move center of edges around
-		myStateBoard[offsetRow][1 + offsetCol] = myStateBoard[1 + offsetRow][offsetCol];
-		myStateBoard[1 + offsetRow][offsetCol] = myStateBoard[2 + offsetRow][1 + offsetCol];
-		myStateBoard[2 + offsetRow][1 + offsetCol] = myStateBoard[1 + offsetRow][2 + offsetCol];
-		myStateBoard[1 + offsetRow][2 + offsetCol] = temp;
-		
-	}	
-
+	public void addToBoard(int row, int col, char playerColor) {
+		this.myState[row][col] = playerColor;
+	}
+	
 	/**
 	 * A method to simplify the call to rotate a quadrant of the board.
 	 * if direction is 0, block rotates counter-clockwise, otherwise, 
@@ -84,234 +156,384 @@ public class GameBoard {
 	}
 	
 	/**
-	 * Check and call method to rotate the block, 0 = False = L, 1 = True = R
-	 * 
-	 * @param theBlock block to rotate.
-	 * @param theDirection true is Clockwise false and is CounterClockwise
+	 * This method clears the current heuristic of the current player.
+	 * This applies to the heuristic of the alpha and beta players or
+	 * max/min players.
 	 */
-	public void rotateBoard(int theBlock, boolean theDirection) {
-		if (theDirection) {
-			rotateClockwise(theBlock);
-		} else {
-			rotateCounterClockwise(theBlock);
-		}
+	public void clearHeuristic() {
+		this.myHeuristic = 0;
 	}
 	
 	/**
-	 * Call helper method to check the result of game.
+	 * Method to determine whether game is over. Calls helper methods
+	 * to check whether there are 5 of one color in a row or if it is
+	 * a cat's game and no winner.
 	 * 
-	 * @return stats of game t is Tie, r is runing, or color of winer.
+	 * @return whether game is over or not.
 	 */
-	public char gameStats() {
-		boolean isFull = true;
-		char status = 'r'; //runable
+	public boolean isGameOver() {
+		int countEmptySpots = 0;
+		
 		for (int i = 0; i < 6; i++) {
 			for (int j = 0; j < 6; j++) {
-				if (myStateBoard[i][j] == '\u0000') {
-					isFull = false;
-					break;
+				if (myState[i][j] == '\u0000') {
+					countEmptySpots++;
 				}
 			}
-		}	
-		if (isFull) {
-			status = 't'; //tie when gameboard fulle
 		}
-		String result = checkRow() + "" + checkCol() + checkDL_DR(1) + checkDL_DR(-1);
-		if (result.contains("B") && result.contains("W")) return 't';
-		else if (!result.contains("B") && result.contains("W")) status = 'W';
-		else if (result.contains("B") && !result.contains("W")) status = 'B';
-		return status;
+		
+		if (!checkHorizontal() && !checkVertical() 
+				&& !checkDiagnalLeft() && !checkDiagnalRight()
+				&& countEmptySpots > 0) {
+			return false;
+		}
+		
+		return true;
 	}
 	
 	/**
-	 * Check Rows to find a a color has 5 in a row. 	 * 
-	 * @return the color of winer or runable 'r'
+	 * Checks if there are 5 of one color in a row horizontally. 
+	 * 
+	 * @return whether there are 5 of one color in a horizontal row.
 	 */
-	private char checkRow() {
+	private boolean checkHorizontal() {
 		int count = 1;
-		char preChar = 'i';
+		char previousChar = '\u0000';
 		char currentChar;
-		for (int r = 0; r < 6; r++) {//row
-			for (int c = 0; c < 6; c++) {//column
-				currentChar = myStateBoard[r][c];
-				if (currentChar == preChar) {
-					count++;					
+		for (int i = 0; i < 6; i++) {//row
+			for (int j = 0; j < 6; j++) {//column
+				currentChar = myState[i][j];
+				if (currentChar == previousChar) {
+					count++;
+					
 					if (count == 5 && currentChar != '\u0000') {
-						return preChar; //the winer color
+						return true;
 					}
 				} else {
 					count = 1;
-					preChar = currentChar;
+					previousChar = currentChar;
 				}
 			}
 		}
-		return 'r'; //no winer -> ranable
+		return false;
 	}
 	
 	/**
-	 * Check Columns to find a color has 5 in a row. 
-	 * @return the color of winer or runable 'r'
+	 * Checks if there are 5 of one color in a row vertically.
+	 * 
+	 * @return whether there are 5 of one color in a vertical row.
 	 */
-	private char checkCol() {
+	private boolean checkVertical() {
 		int count = 1;
-		char preChar = 'i';
+		char previousChar = '\u0000';
 		char currentChar;
-		for (int c = 0; c < 6; c++) {//column
-			for (int r = 0; r < 6; r++) {//row
-				currentChar = myStateBoard[r][c];
-				if (currentChar == preChar) {
-					count++;					
+		for (int i = 0; i < 6; i++) {//column
+			for (int j = 0; j < 6; j++) {//row
+				currentChar = myState[j][i];
+				if (currentChar == previousChar) {
+					count++;
+					
 					if (count == 5 && currentChar != '\u0000') {
-						return preChar; //the winer color
+						return true;
 					}
 				} else {
 					count = 1;
-					preChar = currentChar;
+					previousChar = currentChar;
 				}
 			}
 		}
-		return 'r';
+		return false;
 	}
 	
 	/**
-	 * Check diagonally from top right to bottom left to find a color has 5 in a row. 
-	 * @param direction the left  = 1 or right = -1 for direction 
-	 * @return the color of winer or runable 'r'
+	 * Checks if there are 5 of one color in a row diagonally 
+	 * (top left to bottom right)
+	 * 
+	 * @returnwhether there are 5 in a row diagonally.
 	 */
-	private char checkDL_DR(int direction) {
+	private boolean checkDiagnalLeft() {
 		int count = 1;
-		char preChar = 'i', currentChar = 'i';
+		char previousChar = '\u0000';
+		char currentChar = '\u0000';
 		int offset1 = 0, offset2 = 0;
 		boolean inBound;
 		for (int m = 0; m < 3; m++) {
 			int j = 0;
 			if (m == 1) {
 				offset1 = 1;
+				offset2 = 0;
 			} else if (m == 2) {
 				offset1 = 0;
 				offset2 = 1;
 			}
-			for (int i = 0; i < 6; i++) {//rows
+			for (int i = 0; i < 6; i++) {//iterate through rows
 				inBound = false;
-				if (i + offset1*direction < 6 && j + offset2 < 6) {
-					currentChar = myStateBoard[i + offset1*direction][j + offset2];
+				if (i + offset1 < 6 && j + offset2 < 6) {
+					currentChar = myState[i + offset1][j + offset2];
 					j++;
 					inBound = true;
 				}
-				if (currentChar == preChar && inBound) {
+				if (currentChar == previousChar && inBound) {
 					count++;
 					
 					if (count == 5 && currentChar != '\u0000') {
-						return preChar;
+						return true;
 					}
 				} else {
 					count = 1;
-					preChar = currentChar;
+					previousChar = currentChar;
 				}
 			}
 		}
 		
-		return 'r';
-	}
-	
-	/**
-	 * Check valid the position.
-	 * 
-	 * @param row location.
-	 * @param col location.
-	 * @return whether the location is valid
-	 */
-	public boolean isPositionValid(int row, int col) {
-		return myStateBoard[row][col] == '\u0000';		
-	}
-	
-	/**
-	 * Convert the user format to actural position.
-	 * 
-	 * @param block the quadrant.
-	 * @param position in the block.
-	 * @return returns position in matrix 6x6.
-	 */
-	public int[] convertToActualPosition(int block, int position) {
-		switch (block) {
-			case 1:
-				return new int[] {(position - 1) / 3, (position - 1) % 3};
-			case 2:
-				return new int[] {(position - 1) / 3, (position - 1) % 3 + 3};
-			case 3:
-				return new int[] {(position - 1) / 3 + 3, (position - 1) % 3};
-			default:
-				return new int[] {(position - 1) / 3 + 3, (position - 1) % 3 + 3};
-		}
-	}
-	
-	/**
-	 * Take actual position then return in user coordinate format.
-	 * 
-	 * @param row location in actual array.
-	 * @param col location in actual array.
-	 * @return returns the user coordinate format.
-	 */
-	public int[] reverseToHumanFormat(int row, int col) {
-		int block = 0, position = 0;	
-		if (row < 3) {
-			block = (col < 3)?1:2;
-		} else {
-			block = (col < 3)?3:4;
-		}
-		position = (col % 3) + (3 * (row % 3)) + 1;
-		return new int[] {block,position};
-	}
-	
-	/**
-	 * Check valid for the input of user.
-	 * 
-	 * @param theMove the user input string.
-	 * @return true if valid otherwise false.
-	 */
-	public boolean isValid(String theMove) {
-		if (Pattern.matches("[1-4]/[1-9] [1-4][rRlL]", theMove)) {
-			int[] movePosition = convertToActualPosition(theMove.charAt(0) - '0',theMove.charAt(2) - '0');
-			return isPositionValid(movePosition[0],movePosition[1]);
-		}
 		return false;
 	}
 	
 	/**
-	 * Generate the future possibilities of game state.	 * 
-	 * @param isAlpha the alpha player.
-	 * @return a list of future moves.
+	 * Checks if there are 5 of one color in a row diagonally 
+	 * (bottom right to top left)
+	 * 
+	 * @returnwhether there are 5 in a row diagonally.
 	 */
-	public List<int[]> generateNodes(boolean isAlpha) {
+	private boolean checkDiagnalRight() {
+		int count = 1;
+		char previousChar = '\u0000';
+		char currentChar = '\u0000';
+		int offset1 = 0, offset2 = 0;
+		boolean inBound = false;
+		for (int m = 0; m < 3; m++) {
+			int j = 0;
+			if (m == 1) {
+				offset1 = 1;
+				offset2 = 0;
+			} else if (m == 2) {
+				offset1 = 0;
+				offset2 = 1;
+			}
+			for (int i = 5; i >= 0; i--) {//iterate through rows
+				inBound = false;
+				if (i - offset1 >= 0 && j + offset2 < 6) {
+					currentChar = myState[i - offset1][j + offset2];
+					j++;
+					inBound = true;
+				}
+				if (currentChar == previousChar && inBound) {
+					count++;
+					
+					if (count == 5 && currentChar != '\u0000') {
+						return true;
+					}
+				} else {
+					count = 1;
+					previousChar = currentChar;
+				}
+			}
+		}
+		
+		return false;
+	}
+	
+	
+	/**
+	 * Determines whether the target location is occupied by another
+	 * piece or if it is empty.
+	 * 
+	 * @param row row of target location.
+	 * @param col column of target location.
+	 * @return whether the spot is occupied or not.
+	 */
+	public boolean isValidMove(int row, int col) {
+		if (myState[row][col] == '\u0000') {
+			return true;
+		}
+		return false;
+		
+	}
+	
+	/**
+	 * The string that is input by the user describes a which quadrant
+	 * and which spot in that quadrant the piece will be placed. This 
+	 * method translates the move into a pair of coordinates that point
+	 * to a location on the entire 6x6 board. 
+	 * 
+	 * @param block the quadrant of placed piece.
+	 * @param position the position in the quadrant.
+	 * @return returns the player's move in coordinate format.
+	 */
+	public int[] translateMove(int block, int position) {
+		int row = 0, col = 0;
+		int[] newMove = new int[2];
+		if (block == 1) {
+			row = (position - 1) / 3;
+			col = (position - 1) % 3;
+		} if (block == 2) {
+			row = (position - 1) / 3;
+			col = (position - 1) % 3 + 3;
+		} if (block == 3) {
+
+			row = (position - 1) / 3 + 3;
+			col = (position - 1) % 3;
+		} if (block == 4) {
+
+			row = (position - 1) / 3 + 3;
+			col = (position - 1) % 3 + 3;
+		}
+		newMove[0] = row;
+		newMove[1] = col;
+		return newMove;
+	}
+	
+	/**
+	 * This method translates from the coordinate format to the same
+	 * format in which the user inputs their move (quadrant, spot
+	 * in quadrant).
+	 * 
+	 * @param row the row of target location.
+	 * @param col the column of target location.
+	 * @return returns the coordinates in user input format.
+	 */
+	public int[] reverseTranslate(int row, int col) {
+		int block = 0, position = 0;
+		int [] newMove = new int[2];
+		
+		if (row / 3 == 0) {
+			if (col / 3 == 0) {
+				block = 1;
+			} else {
+				block = 2;
+			}
+		} else {
+			if (col / 3 == 0) {
+				block = 3;
+			} else {
+				block = 4;
+			}
+		}
+		position = (col % 3) + (3 * (row % 3)) + 1;
+		newMove[0] = block;
+		newMove[1] = position;
+		return newMove;
+	}
+	
+	/**
+	 * Translates the direction from Left/Right to 0/1. 
+	 * 
+	 * @param theMove the move in user input format.
+	 * @return returns the direction in numerical format.
+	 */
+	public int getDirection (String theMove) {
+		char direction = theMove.charAt(5);
+		if (direction != 'R' || direction != 'r' ) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+	
+	/**
+	 * This method extracts the character in the user input
+	 * string that determines which block will get rotated or
+	 * receive a piece placement and turns it into an integer.
+	 * 
+	 * @param theMove the user input format of the move.
+	 * @return the integer format of the block number.
+	 */
+	public int getBlockToRotate(String theMove) {
+		return theMove.charAt(4) - '0';
+	}
+	
+	/**
+	 * This method determines whether the user input string
+	 * uses valid syntax.
+	 * 
+	 * @param theMove the user input string.
+	 * @return whether or not the string has valid syntax as a move.
+	 */
+	public boolean isValidSyntax(String theMove) {
+		boolean validSyntax = true;
+		int blockPlacement = 0;
+		int position = 0;
+		int blockToRotate = 0;
+		char direction;
+		int[] newMove = new int[2];
+		
+		try {
+			blockPlacement = theMove.charAt(0) - '0';
+			position = theMove.charAt(2) - '0';
+			blockToRotate = getBlockToRotate(theMove);
+			direction = theMove.charAt(5);
+			if ((direction != 'R' && direction != 'r' 
+					&& direction != 'L' && direction != 'l')
+					|| (blockPlacement < 1 || blockPlacement > 4)
+					|| (blockToRotate < 1 || blockToRotate > 4)
+					|| (position < 1 || position > 9)) {
+				throw new IllegalArgumentException();
+			}
+
+			newMove = translateMove(blockPlacement, position);
+			
+		} catch (Exception e) {
+			validSyntax = false;
+		}
+		
+		if (validSyntax && isValidMove(newMove[0], newMove[1])) {
+			return true;
+		}
+		System.out.println("Invalid move");
+		return false;
+	}
+	
+	/**
+	 * Executes the move by setting the target location on the
+	 * gameboard to the color in the argument.
+	 * 
+	 * @param row the row of the target location.
+	 * @param col the column of the target location.
+	 * @param color the color of the current player's piece.
+	 */
+	public void performMove(int row, int col, char color) {
+		myState[row][col] = color;
+		
+	}
+	
+	/**
+	 * This is the method that retrieves the future possibilities of
+	 * the game board.
+	 * 
+	 * @param isCurrentPlayer2 whether the current player is alpha or not.
+	 * @return returns a list of future move coordinates.
+	 */
+	public List<int[]> getChildren(boolean isCurrentPlayer2) {
 		List<int[]> nextMoves = new ArrayList<int[]>();
-		for (int b = 0; b < 4; b++) {// block to rotate
-			for(int r = 0; r < 6; r++) { //row
-				for(int c = 0; c < 6; c++) { //column
-					if(myStateBoard[r][c] == '\u0000') { //two posible direction
-						nextMoves.add(new int[] {r, c, b, 0});
-						nextMoves.add(new int[] {r, c, b, 1});
+		
+		int count = 0;
+		int row = 0;
+		int col = 0;
+		int block = 0; // block to rotate
+		int dir = 0; // 0 is left, 1 is right
+		ArrayList<GameBoard> tempList = new ArrayList<GameBoard>();
+		for (dir = 0; dir < 2; dir++) {
+			for (block = 0; block < 4; block++) {
+				for(row = 0; row < 6; row++) {
+					for(col = 0; col < 6; col++) {
+						if(myState[row][col] == '\u0000') {
+							nextMoves.add(new int[] {row, col, block, dir});
+						}
 					}
 				}
 			}
 		}
+		
 		return nextMoves;
 	}
 	
 	/**
-	 * Add a valid move into board game.
-	 * 
-	 * @param row location.
-	 * @param col location.
-	 * @param color of player.
+	 * This method prints an ascii version of the gameboard state.
+	 * white players are marked as 'w' and black players are marked
+	 * as 'b'. blank spaces are just just blank characters (aka. '\u0000').
 	 */
-	public void addMove(int row, int col, char color) {
-		myStateBoard[row][col] = color;		
-	}
-	
-	/**
-	 * Print the current state of the game.
-	 */
-	public void printCurrentGame() {
+	public void displayGameBoard() {
+		char temp[][] = myState;
 		for (int i = 0; i < 6; i++) {
 			for (int j = 0; j < 6; j++) {
 				if (i % 3 == 0 && j == 0) {
@@ -321,11 +543,12 @@ public class GameBoard {
 					System.out.print("| ");
 				}
 				
-				if (myStateBoard[i][j] == '\u0000') {
+				if (temp[i][j] == '\u0000') {
 					System.out.print(". ");
 				} else {
-					System.out.print(myStateBoard[i][j] + " ");	
-				}				
+					System.out.print(temp[i][j] + " ");	
+				}
+				
 				if (j == 5) {
 					System.out.println("|");
 				}
@@ -336,13 +559,17 @@ public class GameBoard {
 
 
 	/**
-	 * Compare to other gameboard.
+	 * An equals method to determine whether two gameboards
+	 * have identical states.
 	 * 
-	 * @param theOther the gameboard.
-	 * @return result of current state compare to other state.
+	 * @param theGameBoard the gameboard that will be compared to this.gamebaord.
+	 * @return whether the gameboard states are identical or not.
 	 */
-	public boolean equals(GameBoard theOther) {
-		return this.myStateBoard.equals(theOther.myStateBoard);
+	public boolean equals(GameBoard theGameBoard) {
+		if ((theGameBoard.myState).equals(this.myState)) {
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -357,9 +584,9 @@ public class GameBoard {
 		char currentChar = '\u0000';
 		char myColor;
 		if (isAlphaPlayer) {
-			myColor = playerColor;
+			myColor = player1color;
 		} else {
-			myColor = player_Tow_Color;
+			myColor = player2color;
 		}
 		int numAvailableWinningSpots = 0, countEmpty = 0, 
 				offset1 = 0, offset2 = 0, count = 1;
@@ -367,9 +594,9 @@ public class GameBoard {
 		//horizontal
 		for (int i = 0; i < 6; i++) {
 			for (int j = 0; j < 6; j++) {
-				currentChar = myStateBoard[i][j];
+				currentChar = myState[i][j];
 				
-				if (myStateBoard[i][j] == '\u0000' || currentChar == myColor) {
+				if (myState[i][j] == '\u0000' || currentChar == myColor) {
 					countEmpty++;
 					if (countEmpty == 5) {
 						numAvailableWinningSpots++;
@@ -398,9 +625,9 @@ public class GameBoard {
 		//vertical
 		for (int j = 0; j < 6; j++) {
 			for (int i = 0; i < 6; i++) {
-				currentChar = myStateBoard[i][j];
+				currentChar = myState[i][j];
 				
-				if (myStateBoard[i][j] == '\u0000' || currentChar == myColor) {
+				if (myState[i][j] == '\u0000' || currentChar == myColor) {
 					countEmpty++;
 					if (countEmpty == 5) {
 						numAvailableWinningSpots++;
@@ -433,7 +660,7 @@ public class GameBoard {
 			for (int i = 5; i >= 0; i--) {
 				
 				if (i - offset1 >= 0 && j + offset2 < 6) {
-					currentChar = myStateBoard[i - offset1][j + offset2];
+					currentChar = myState[i - offset1][j + offset2];
 					if (currentChar == '\u0000' || currentChar == myColor) {
 						countEmpty++;
 						if (countEmpty == 5) {
@@ -470,7 +697,7 @@ public class GameBoard {
 			if (m == 2) { offset1 = 0; offset2 = 1;}
 			for (int i = 0; i < 6; i++) {
 				if (i + offset1 < 6 && j + offset2 < 6) {
-					currentChar = myStateBoard[i + offset1][j + offset2];
+					currentChar = myState[i + offset1][j + offset2];
 					if (currentChar == '\u0000' || currentChar == myColor) {
 						countEmpty++;
 						if (countEmpty == 5) {
@@ -512,43 +739,43 @@ public class GameBoard {
 	 */
 	public void countNumInArow(char currentChar, char previousChar, int count, boolean isAlphaPlayer) {
 		if (isAlphaPlayer) {
-			if (count == 5 && player_Tow_Color == currentChar) {
+			if (count == 5 && player2color == currentChar) {
 				myHeuristic += 500;
-			} else if (count == 4 && player_Tow_Color == currentChar) {
+			} else if (count == 4 && player2color == currentChar) {
 				myHeuristic += 50;
-			} else if (count == 3 && player_Tow_Color == currentChar) {
+			} else if (count == 3 && player2color == currentChar) {
 				myHeuristic += 20;
-			} else if (count == 2 && player_Tow_Color == currentChar) {
+			} else if (count == 2 && player2color == currentChar) {
 				myHeuristic += 10;
 			} 
 			
-			if (count == 5 && playerColor == currentChar) {
+			if (count == 5 && player1color == currentChar) {
 				myHeuristic -= 500;
-			} else if (count == 4 && playerColor == currentChar) {
+			} else if (count == 4 && player1color == currentChar) {
 				myHeuristic -= 50;
-			} else if (count == 3 && playerColor == currentChar) {
+			} else if (count == 3 && player1color == currentChar) {
 				myHeuristic -= 20;
-			} else if (count == 2 && playerColor == currentChar) {
+			} else if (count == 2 && player1color == currentChar) {
 				myHeuristic -= 10;
 			} 
 		} else {
-			if (count == 5 && player_Tow_Color == currentChar) {
+			if (count == 5 && player2color == currentChar) {
 				myHeuristic -= 500;
-			} else if (count == 4 && player_Tow_Color == currentChar) {
+			} else if (count == 4 && player2color == currentChar) {
 				myHeuristic -= 50;
-			} else if (count == 3 && player_Tow_Color == currentChar) {
+			} else if (count == 3 && player2color == currentChar) {
 				myHeuristic -= 20;
-			} else if (count == 2 && player_Tow_Color == currentChar) {
+			} else if (count == 2 && player2color == currentChar) {
 				myHeuristic -= 10;
 			} 
 			
-			if (count == 5 && playerColor == currentChar) {
+			if (count == 5 && player1color == currentChar) {
 				myHeuristic += 500;
-			} else if (count == 4 && playerColor == currentChar) {
+			} else if (count == 4 && player1color == currentChar) {
 				myHeuristic += 50;
-			} else if (count == 3 && playerColor == currentChar) {
+			} else if (count == 3 && player1color == currentChar) {
 				myHeuristic += 20;
-			} else if (count == 2 && playerColor == currentChar) {
+			} else if (count == 2 && player1color == currentChar) {
 				myHeuristic += 10;
 			} 
 		}
