@@ -1,208 +1,111 @@
 import java.util.List;
 
 /**
- * @author Tony
+ * @author Hop N Pham
  *
- * This class is the artifical-intelligence that will be
- * playing against the human. Since it is random who goes
- * first, the AI is not always going to be alpha/max or the
- * beta/min player and same goes with the human.  
+ * Base on the information that human or computer is the first mover then
+ * the AI will be alpha/max or the beta/min player.  
  */
 public class AI {
 
-	public int nodesExpanded;		//Number of nodes expanded.
-	private GameBoard gameBoard;	//the state of the current gameboard.
-		
-	public AI() {
-		//Default constructor
-	}
-	
-	public GameBoard getBoard() {
-		return gameBoard;
-	}
-	
+	private int nodesExpanded;
 	/**
-	 * The alpha-beta-pruning algorithm that the AI will follow
-	 * to play the best move possible against the human. The
-	 * strength of the AI depends on the depth which is the 
-	 * number of moves that the computer can foresee.
-	 * 
-	 * @param depth number of moves that the computer can foresee.
-	 * @param gameBoard the future gameboard states.
-	 * @param alphaPlayer whether the AI is an alpha player.
-	 * @param alpha the heuristic score of alpha player.
-	 * @param beta the heuristic score of beta player.
-	 * @return returns the coordinates of intelligent move.
+	 * @return total nodes expanded based on the depth.
 	 */
-	public int[] alphaBetaPrun(int depth, GameBoard gameBoard,
-					boolean alphaPlayer, int alpha, int beta) {
-		int heuristicValue = 0;
-		int bestRow = -1;
-		int bestCol = -1;
-		int bestBlock = -1;
-		int bestDir = -1;
-		int row, col, block, dir;
-		int compCount = 1;
-		int humCount = 1;
-		List<int[]> nextMoves = gameBoard.getChildren(alphaPlayer);
-		
-		if(depth == 0 || nextMoves.isEmpty()) {
-			nodesExpanded++;
-			heuristicValue = gameBoard.getHeuristicValue(alphaPlayer);
-			return new int[] {heuristicValue, bestRow, bestCol};
-		} else {
-	         for (int[] move : nextMoves) {
-	        	 row = move[0];
-	        	 col = move[1];
-	        	 block = move[2];
-	        	 dir = move[3];
-	             if (alphaPlayer) {  // max player (alpha)
-//	            	 System.out.print("Human(MAX) Move: "+"("+row+","+col+")"+block+"/"+dir+" " + humCount++ + "/" + nextMoves.size() + " | ");
-	            	 gameBoard.addToBoard(row, col, gameBoard.player1color);
-	            	 gameBoard.rotateBoard(block, dir);
-				     heuristicValue = alphaBetaPrun(depth - 1, gameBoard, false, alpha, beta)[0];
-				     nodesExpanded++;
-//				     System.out.println("Depth: "+ depth+ " Heuristic Value: " + heuristicValue + " ");
-				     if (heuristicValue > alpha) {
-				    	 alpha = heuristicValue;
-				    	 bestRow = row;
-				    	 bestCol = col;
-	            		 bestBlock = block;
-	            		 bestDir = dir;
-				     }
-	            	 //undo move
-				     if (dir == 0) {
-		            	 gameBoard.rotateBoard(block, 1);
-		            	 gameBoard.addToBoard(row, col, '\u0000');
-		             } else {
-		            	 gameBoard.rotateBoard(block, 0);
-		            	 gameBoard.addToBoard(row, col, '\u0000');
-		             }
-				     gameBoard.clearHeuristic();
-	             } else {  // min player (beta)
-//	            	 System.out.println("AI(MIN) Move: "+"("+row+","+col+")"+block+"/"+dir+" " + humCount++ + "/" + nextMoves.size() + " | ");
-	            	 gameBoard.addToBoard(row, col, gameBoard.player2color);
-	            	 gameBoard.rotateBoard(block, dir);
-	            	 heuristicValue = alphaBetaPrun(depth - 1, gameBoard, true, alpha, beta)[0];
-	            	 nodesExpanded++;
-//				     System.out.println("Depth: "+ depth+ " Heuristic Value: " + heuristicValue + " ");
-	            	 if (heuristicValue < beta) {
-	            		 beta = heuristicValue;
-	            		 bestRow = row;
-	            		 bestCol = col;
-	            		 bestBlock = block;
-	            		 bestDir = dir;
-	            	 }
-	            	 //undo move
-	            	 if (dir == 0) {
-		            	 gameBoard.rotateBoard(block, 1);
-		            	 gameBoard.addToBoard(row, col, '\u0000');
-		             } else {
-		            	 gameBoard.rotateBoard(block, 0);
-		            	 gameBoard.addToBoard(row, col, '\u0000');
-		             }
-	            	 gameBoard.clearHeuristic();
-				 }
-	             //prune off branch
-	             if (alpha >= beta) {
-	            	 break;
-	             }
-	          }
-	         if (alphaPlayer) {
-	        	 return new int[]{alpha, bestRow, bestCol, bestBlock, bestDir};
-	         } else {
-	        	 return new int[]{beta, bestRow, bestCol, bestBlock, bestDir};
-	         }
-	       }
+	public int getNodes() {
+		return nodesExpanded;
 	}
-	
 	/**
-	 * The min-max algorithm that the AI will follow to find the
-	 * best possible move against the human. The strength of the
-	 * AI move will depend on the depth.
-	 * 
-	 * @param depth number of moves that the computer can foresee.
-	 * @param gameBoard future states of the gameboard.
-	 * @param alphaPlayer whether the AI is alpha or beta player.
-	 * @return returns the coordinates of intelligent move.
+	 * Handle the moves base on Min-Max algorithm.
+	 * @param depth the depth will expanded.
+	 * @param theGameBoard the future gameboard states.
+	 * @param maxPlayer will be human or AI.
+	 * @return returns list of posible moves.
 	 */
-	public int[] minMax(int depth, GameBoard gameBoard, boolean alphaPlayer) {
-		int heuristicValue = 0;
-		int bestValue = 0;
-		int bestRow = -1;
-		int bestCol = -1;
-		int bestBlock = -1;
-		int bestDir = -1;
-		int row, col, block, dir;
-		int compCount = 1;
-		int humCount = 1;
-		List<int[]> nextMoves = gameBoard.getChildren(alphaPlayer);
-		
-		if(depth == 0 || nextMoves.isEmpty()) {
-			nodesExpanded++;
-			bestValue = gameBoard.getHeuristicValue(alphaPlayer);
-			return new int[] {bestValue, bestRow, bestCol};
-		} else {
-	         for (int[] move : nextMoves) {
-	        	 row = move[0];
-	        	 col = move[1];
-	        	 block = move[2];
-	        	 dir = move[3];
-	             if (alphaPlayer) {  // max player 
-	            	 bestValue = Integer.MIN_VALUE;
-//	            	 System.out.print("Human(MAX) Move: "+"("+row+","+col+")"+block+"/"+dir+" " + humCount++ + "/" + nextMoves.size() + " | ");
-	            	 gameBoard.addToBoard(row, col, gameBoard.player1color);
-	            	 gameBoard.rotateBoard(block, dir);
-				     heuristicValue = minMax(depth - 1, gameBoard, false)[0];
-	            	 nodesExpanded++;
-//				     System.out.println("Depth: "+ depth+ " Heuristic Value: " + heuristicValue + " ");
-				     if (heuristicValue > bestValue) {
-				    	 bestValue = heuristicValue;
-				    	 bestRow = row;
-				    	 bestCol = col;
-	            		 bestBlock = block;
-	            		 bestDir = dir;
-				     }
-	            	 //undo move
-				     if (dir == 0) {
-		            	 gameBoard.rotateBoard(block, 1);
-		            	 gameBoard.addToBoard(row, col, '\u0000');
-		             } else {
-		            	 gameBoard.rotateBoard(block, 0);
-		            	 gameBoard.addToBoard(row, col, '\u0000');
-		             }
-				     gameBoard.clearHeuristic();
-	             } else {  // min player
-	            	 bestValue = Integer.MAX_VALUE;
-//	            	 System.out.println("AI(MIN) Move: "+"("+row+","+col+")"+block+"/"+dir+" " + humCount++ + "/" + nextMoves.size() + " | ");
-	            	 gameBoard.addToBoard(row, col, gameBoard.player2color);
-	            	 gameBoard.rotateBoard(block, dir);
-	            	 heuristicValue = minMax(depth - 1, gameBoard, true)[0];
-	            	 nodesExpanded++;
-//				     System.out.println("Depth: "+ depth+ " Heuristic Value: " + heuristicValue + " ");
-	            	 if (heuristicValue < bestValue) {
-	            		 bestValue = heuristicValue;
-	            		 bestRow = row;
-	            		 bestCol = col;
-	            		 bestBlock = block;
-	            		 bestDir = dir;
-	            	 }
-	            	 //undo move
-	            	 if (dir == 0) {
-		            	 gameBoard.rotateBoard(block, 1);
-		            	 gameBoard.addToBoard(row, col, '\u0000');
-		             } else {
-		            	 gameBoard.rotateBoard(block, 0);
-		            	 gameBoard.addToBoard(row, col, '\u0000');
-		             }
-	            	 gameBoard.clearHeuristic();
-				 }
-	          }
-	         if (alphaPlayer) {
-	        	 return new int[]{bestValue, bestRow, bestCol, bestBlock, bestDir};
-	         } else {
-	        	 return new int[]{bestValue, bestRow, bestCol, bestBlock, bestDir};
+	public int[] minMax(int depth, GameBoard theGameBoard, boolean maxPlayer) {		
+		int row = -1, col = -1, block = -1, direction = -1;
+		int heuristic = 0, heuristic_replace = 0;
+		List<int[]> possibleMoves = theGameBoard.generateNodes(maxPlayer);
+		if (depth > 0 && !possibleMoves.isEmpty()){
+	        for (int[] move : possibleMoves) { //[row, col, block, direction]
+	        	char color; 
+	        	if (maxPlayer) {  // max player
+	        		heuristic_replace = Integer.MIN_VALUE;
+	        		color = theGameBoard.playerColor;
+	        	} else {
+	        		heuristic_replace = Integer.MAX_VALUE;
+	        		color = theGameBoard.player_Tow_Color;
+	        	}
+	        	theGameBoard.addMove(move[0], move[1], color);
+            	theGameBoard.rotateBoard(move[2], move[3] == 1);
+			    heuristic = minMax(depth - 1, theGameBoard, !maxPlayer)[0];
+	        	if (maxPlayer && heuristic > heuristic_replace) { //update min max value
+				   	heuristic_replace = heuristic;
+				}else if (!maxPlayer && heuristic < heuristic_replace) {
+	            		heuristic_replace = heuristic;
+	            }
+	        	nodesExpanded++;
+	        	row = move[0];
+		    	col = move[1];
+        		block = move[2];
+        		direction = move[3];
+	        	undoMove(theGameBoard,move[2],move[0],move[1],move[3]==0);
 	         }
+	         return new int[]{heuristic_replace, row, col, block, direction};
 		}
+		nodesExpanded++;
+		return new int[] {theGameBoard.totalHeuristic(maxPlayer)};		
+	}
+	
+	/**
+	 * Handle the moves base on Alpha-Beta algorithm.
+	 * @param depth the depth will expanded.
+	 * @param theGameBoard the future gameboard states.
+	 * @param alphaPlayer will be human or AI.
+	 * @param alpha value of alpha base on calculating heuristic.
+	 * @param beta value of beta base on calculating heuristic.
+	 * @return returns list of posible moves.
+	 */
+	public int[] alphaBeta(int depth, GameBoard theGameBoard, boolean alphaPlayer, int alpha, int beta) {
+		int heuristic = 0;
+		int row = -1, col = -1, block = -1, direction = -1;
+		List<int[]> possibleMoves = theGameBoard.generateNodes(alphaPlayer);		
+		if (depth > 0 && !possibleMoves.isEmpty()){
+			for (int[] move : possibleMoves) {
+				char alpha_Beta_Color = (alphaPlayer)?theGameBoard.playerColor:theGameBoard.player_Tow_Color;
+	            theGameBoard.addMove(move[0], move[1], alpha_Beta_Color);
+	            theGameBoard.rotateBoard(move[2], move[3] == 1);
+				heuristic = alphaBeta(depth - 1, theGameBoard, !alphaPlayer, alpha, beta)[0];
+				if (alphaPlayer && heuristic > alpha) {
+				   	alpha = heuristic;
+				} else if (!alphaPlayer && heuristic < beta) {
+	            	beta = heuristic;	            		
+				}	            	
+	            undoMove(theGameBoard,move[2],move[0],move[1],move[3]==0); //block row col direction
+				nodesExpanded++;
+	            row = move[0];
+		    	col = move[1];
+        		block = move[2];
+        		direction = move[3];        
+	            if (alpha >= beta) { break; } //pruned off
+			}	         
+			return new int[] {alphaPlayer?alpha:beta, row, col, block, direction};
+		}
+		nodesExpanded++;
+		return new int[] {theGameBoard.totalHeuristic(alphaPlayer)};
+	}
+	
+	/**
+	 * Undo the move and clear the heuristic 0 = L = false, 1=R = true
+	 * @param block the block
+	 * @param row the row location
+	 * @param col the col location
+	 * @param theDirection the direction
+	 * @param theGameBoard the board
+	 */
+	private void undoMove(GameBoard theGameBoard, int block, int row, int col, boolean theDirection) {
+		theGameBoard.rotateBoard(block, theDirection);
+		theGameBoard.addMove(row, col, '\u0000');
+		theGameBoard.myHeuristic = 0;
 	}
 }
