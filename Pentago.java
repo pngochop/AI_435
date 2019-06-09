@@ -1,85 +1,79 @@
 import java.io.FileNotFoundException;
 import java.util.Random;
 import java.util.Scanner;
-import java.util.regex.*; 
+
 /**
- * @author Hop N Pham
+ * @author Tony
  * 
- * The driver class.
- * Pentago is a 2-player game played on	a 6x6 grid.
- * The players alternate turns.
- * The two players are referred	to here	as "W" and "B",	which also signifies the colors	of 
- * the	tokens	(white	and	black)	they	place	on	the	board.
+ * This is the driver class for the Pentago game. The constants here
+ * can be toggled to determine depth, AI algorithm of choice (alpha-beta vs.
+ * min-max). Debug mode can be toggled. 
  */
 public class Pentago {
-	//Depth	level for lookahead.
-	public static final int DEPTH = 3;					
-	//Default method for AI, otherwise MinMax
-	public static final boolean ALPHA_BETA = true; 
-	//The current gameboard state.
-	public static GameBoard myGameBoard;	
-	//The color of the current player.
-	public static char currentPlayer;				
+	public static final int DEPTH = 3;				//how many moves the AI can foresee.
+	public static final boolean DEBUG = false;
+	public static final boolean MANUAL_FIRST_MOVE = false; //human always first
+	public static final int AI_FIRSTMOVE_ROW = 0; 	//used if moves are set to random
+	public static final int AI_FIRSTMOVE_COL = 0; 	//used if moves are set to random
+	
+	//alpha beta pruning. true will enable alpha beta pruning algorithm. false enables min max algorithm
+	public static final boolean AB_PRUNE = true; 
+	
+	public static GameBoard myGameBoard;			//the current gameboard state.
+	public static String myPlayerName;				//name of the human.
+	public static boolean isGameOver;				
+	public static char currentPlayer;				//the color of the current player.
 	
 	/**
-	 * Initializes the gameboard then controll the game state.
+	 * Main method that initializes the gameboard and calls 
+	 * the introduction, which prints out the text for the game.
 	 * 
 	 * @param args command line arguments.
 	 * @throws FileNotFoundException
 	 */
 	public static void main (String args[]) throws FileNotFoundException {
-		Scanner scan = new Scanner(System.in);
-		myGameBoard = new GameBoard();		
-		init(scan);		
+		myGameBoard = new GameBoard();
+		Scanner myScanner = new Scanner(System.in);
+		intro(myScanner);
+		startGame(myScanner);
 	}
 	
-	public static void init(Scanner theScanner) throws FileNotFoundException {		
-		System.out.println("Welcome to Pentago Game!");
-		System.out.print("What is your name?");
-		String playerName = theScanner.nextLine();
+	public static void intro(Scanner myScanner) {
+		char color = '\u0000';
+		System.out.println("Welcome to Pentago!");
+		System.out.println("What is your name?");
+		myPlayerName = myScanner.nextLine();
 		System.out.println(
-				"To win: get five marbles in a row, in any direction.\n" +
-				"Placing one marble: [Block]/[Position] [Block][Direction]\n" +
-				"anywhere on the board and twisting any of the game blocks 90 degrees,\n"+
-				"in either direction (Left/Right).\n" +
-			    "You can place your marble on one game block and twist any other game block.\n" +
-				"For example: 1/1 1L or 1/1 2R\n" +
+				"Hi " + myPlayerName + ", here are the rules:\n" +
+				"  Objective: get 5 of your color in a row to win the game.\n"+
+				"   Place your pieces with the syntax: b/p bd\n"+
+				"   b=block p=position d=direction\n"+
+				"\n" +
 				"   Block 1  Block 2\n" +
-				"   +-------+-------+ \t +-------+-------+\r\n" + 
-				"   | 1 2 3 | 1 2 3 | \t | . . . | . . . |\r\n" + 
-				"   | 4 5 6 | 4 5 6 | \t | . . . | . . . |\r\n" + 
-				"   | 7 8 9 | 7 8 9 | \t | 1 . . | . . . |\r\n" + 
-				"   +-------+-------+ \t +-------+-------+\r\n" + 
-				"   | 1 2 3 | 1 2 3 | \t | . . . | . . . |\r\n" + 
-				"   | 4 5 6 | 4 5 6 | \t | . . . | . . . |\r\n" +  
-				"   | 7 8 9 | 7 8 9 | \t | . . . | . . . |\r\n" +  
-				"   +-------+-------+ \t +-------+-------+\n" +
-			    "   Block 3  Block 4      After move 1/1 1L \n");
-		
-		boolean humanFirstPlay = false;
-		char color = 'i', player_2_Color = 'i';
+				"   +-------+-------+\r\n" + 
+				"   | 1 2 3 | 1 2 3 |\r\n" + 
+				"   | 4 5 6 | 4 5 6 |\r\n" + 
+				"   | 7 8 9 | 7 8 9 |\r\n" + 
+				"   +-------+-------+\r\n" + 
+				"   | 1 2 3 | 1 2 3 |\r\n" + 
+				"   | 4 5 6 | 4 5 6 |\r\n" + 
+				"   | 7 8 9 | 7 8 9 |\r\n" + 
+				"   +-------+-------+\n" +
+			    "   Block 3  Block 4\n");
 		System.out.print("What color would you like? (b or w) ");
-		while (!Pattern.matches("[bBwW]", color+"")) {
-			color = (theScanner.nextLine()).charAt(0);			
+		while (color != 'B' && color != 'b' 
+				&& color != 'W' && color != 'w') {
+			color = (myScanner.nextLine()).charAt(0);
+			myGameBoard.setPlayer1color(Character.toUpperCase(color));
 		}
-		myGameBoard.playerColor = Character.toUpperCase(color);
-		player_2_Color = (color == 'W' || color == 'w')?'B':'W';
-		myGameBoard.player_Tow_Color = player_2_Color;
-		
-		if (new Random().nextInt(2) == 1) { //Human
-			System.out.println("Player 1 " + playerName + ".");
-			System.out.println("Player 2 Computer.");
-			System.out.println("Player 1 Token Color " + color);
-			System.out.println("Player 2 Token Color " + player_2_Color);
-			humanFirstPlay = true;
-			currentPlayer = myGameBoard.playerColor;
+		if (color == 'W' || color == 'w') {
+			myGameBoard.setPlayer2color('B');
 		} else {
-			System.out.println("Player 1 Computer.");
-			System.out.println("Player 2 " + playerName + ".");
-			System.out.println("Player 1 Token Color " + player_2_Color);
-			System.out.println("Player 2 Token Color " + color);
+			myGameBoard.setPlayer2color('W');
 		}
 		System.out.println(
+			    "Alright, here is your empty board! Good Luck "+ myPlayerName +"!\n" +
+			    "You are Player 1 and the computer will be Player 2\n" +
 			    "+-------+-------+\r\n" + 
 			    "| . . . | . . . |\r\n" + 
 			    "| . . . | . . . |\r\n" + 
@@ -89,68 +83,127 @@ public class Pentago {
 			    "| . . . | . . . |\r\n" + 
 			    "| . . . | . . . |\r\n" + 
 			    "+-------+-------+");
-		playGame(theScanner, humanFirstPlay);
-		theScanner.close();
 	}
 	
 	/**
-	 * Handle the move of computer base on AI.
+	 * Acquires player name, player color and determines
+	 * which player goes first.  
+	 * 
+	 * @param myScanner scanner for user input.
+	 * @throws FileNotFoundException
 	 */
-	public static void computerMove() {		
-		AI aI = new AI();
-		int[] pickMoveAI = null;
-		if (ALPHA_BETA) { //choose alpha beta or min max algorithm
-			pickMoveAI = aI.alphaBeta(DEPTH, myGameBoard, false, Integer.MIN_VALUE, Integer.MAX_VALUE);
+	public static void startGame(Scanner myScanner) throws FileNotFoundException {
+		boolean isPlayer1First;
+		
+		Random rand = new Random();
+		
+		if (rand.nextInt(2) == 0) {
+			System.out.println("You will move first.");
+			isPlayer1First = true;
+			currentPlayer = myGameBoard.getPlayer1color();
 		} else {
-			pickMoveAI = aI.minMax(DEPTH, myGameBoard, false);			
+			System.out.println("Player 2 will move first.");
+			isPlayer1First = false;
 		}
-		int[] move = myGameBoard.reverseToHumanFormat(pickMoveAI[1], pickMoveAI[2]);
-		char dir = (pickMoveAI[4] == 0)?'L':'R';
-		System.out.println("Computer moves " + move[0] + "/" + move[1] + " " + move[0] + dir);
-		myGameBoard.addMove(pickMoveAI[1], pickMoveAI[2], currentPlayer);
-		myGameBoard.rotateBoard(move[0], pickMoveAI[4] == 1);
-		myGameBoard.printCurrentGame();
-		//System.out.println(aI.getNodes());
+		playGame(myScanner, isPlayer1First);
+		myScanner.close();
 	}
 	
 	/**
-	 * Controll the game base on the current player.
-	 * @param theScanner to scan input from user.
-	 * @param humanFirstPlay if human is first player.
+	 * Driver method that will determine which is the current player,
+	 * and handles the turn based game and prints out the board
+	 * after each turn. 
+	 * 
+	 * @param myScanner scanner for user input for player move.
+	 * @param player1First if human is first.
 	 */
-	public static void playGame(Scanner theScanner, boolean humanFirstPlay) {
-		String userMove;
-		if(!humanFirstPlay) { //Computer move first
-			currentPlayer = myGameBoard.player_Tow_Color;
-			myGameBoard.addMove(new Random().nextInt(6), new Random().nextInt(6), currentPlayer); // Default First move of computer
-			myGameBoard.printCurrentGame();
-			humanFirstPlay = true;
-		} 
-		char stats = 'r';
-		while (stats == 'r') { //game is runing
-			if (humanFirstPlay) {
-				currentPlayer = myGameBoard.playerColor;
-				System.out.println("Player move: ");
-				userMove = theScanner.nextLine();
-				//re-check to edit code for input valid position
-				while (!myGameBoard.isValid(userMove)) {
-					System.out.print("Invalid Move! Please enter again: ");
-					userMove = theScanner.nextLine();					
+	public static void playGame(Scanner myScanner, boolean player1First) {
+		String theMove;
+		boolean isValid = false;
+		int turnCount = 0;
+		
+		while (!isGameOver) {
+			if (player1First) {
+				currentPlayer = myGameBoard.getPlayer1color();
+				System.out.println("Player 1 Move: ");
+				theMove = myScanner.nextLine();
+				
+				do {
+					if (myGameBoard.isValidSyntax(theMove)) {
+						isValid = true;
+						int[] myMove = myGameBoard.translateMove(theMove.charAt(0) - '0', theMove.charAt(2) - '0');
+						myGameBoard.performMove(myMove[0], myMove[1], currentPlayer);
+						
+						myGameBoard.rotateBoard(myGameBoard.getBlockToRotate(theMove), myGameBoard.getDirection(theMove));
+						
+					} else {
+						isValid = false;
+						theMove = myScanner.nextLine();
+					}
+				} while (!isValid);
+				
+				myGameBoard.displayGameBoard();
+				player1First = false;
+				isGameOver = myGameBoard.isGameOver();
+				if (isGameOver) {
+					System.out.println("Player 1 wins");
 				}
-				int[] myMove = myGameBoard.convertToActualPosition(userMove.charAt(0) - '0', userMove.charAt(2) - '0');
-				myGameBoard.addMove(myMove[0], myMove[1], currentPlayer);
-				myGameBoard.rotateBoard(userMove.charAt(4) - '0', (userMove.charAt(5)+"").equalsIgnoreCase("R"));				
-				myGameBoard.printCurrentGame();
-				humanFirstPlay = false;
-
-			}else {
-				currentPlayer = myGameBoard.player_Tow_Color;
-				computerMove();
-				humanFirstPlay = true;
+			} else if (turnCount == 0) { 
+				currentPlayer = myGameBoard.getPlayer2color();
+				playRandomMove();
+				player1First = true;
+			} else {
+				currentPlayer = myGameBoard.getPlayer2color();
+				playComputerMove();
+				player1First = true;
+				isGameOver = myGameBoard.isGameOver();
+				if (isGameOver) {
+					System.out.println("Player 2 wins");
+				}
 			}
-			stats = myGameBoard.gameStats();
+			turnCount++;
 		}
-		if (stats == 't') System.out.println("The game is tie!");
-		else System.out.println("The "+ stats + " Token player is win!");
+	}
+	
+	/**
+	 * This method handles the computer's method calls to determine
+	 * which will be the best move to make next.  
+	 */
+	public static void playComputerMove() {
+		int[] bestAImove = null;
+		int num;
+		Computer computer = new Computer();
+		if (AB_PRUNE) {
+			bestAImove = computer.alphaBetaPrun(DEPTH, myGameBoard, false, Integer.MIN_VALUE, Integer.MAX_VALUE);
+			num = computer.nodesExpanded;
+		} else {
+			bestAImove = computer.minMax(DEPTH, myGameBoard, false);
+			num = computer.nodesExpanded;
+		}
+		int[] move = myGameBoard.reverseTranslate(bestAImove[1], bestAImove[2]);
+		char dir;
+		if (bestAImove[4] == 0) {
+			dir = 'L';
+		} else {
+			dir = 'R';
+		}
+		System.out.println("Player 2 plays " + move[0] + "/" + move[1] + " " + (bestAImove[3] + 1) + dir + " with a heuristic value of: " + bestAImove[0]);
+		myGameBoard.performMove(bestAImove[1], bestAImove[2], currentPlayer);
+		myGameBoard.rotateBoard(bestAImove[3], bestAImove[4]);
+		myGameBoard.displayGameBoard();
+	}	
+	
+	/**
+	 * If random is enabled, then computer will just play a completely
+	 * unintelligent random move on the board.
+	 */
+	public static void playRandomMove() {
+		Random rand = new Random();
+		if (MANUAL_FIRST_MOVE) {
+			myGameBoard.performMove(AI_FIRSTMOVE_ROW, AI_FIRSTMOVE_COL, currentPlayer);
+		} else {
+			myGameBoard.performMove(rand.nextInt(6), rand.nextInt(6), currentPlayer);
+		}
+		myGameBoard.displayGameBoard();
 	}
 }
