@@ -28,29 +28,7 @@ public class GameBoard {
 	public void addMove(int row, int col, char color) {
 		myStateBoard[row][col] = color;
 	}
-	/**
-	 * Check Rows to find a a color has 5 in a row. 	 * 
-	 * @return the color of winer or runable 'r'
-	 */
-	private char checkRow() {		
-		char preChar = 0, currentChar = 0;
-		int number = 1;
-		for (int r = 0; r < 6; r++) {
-			for (int c = 0; c < 6; c++) {
-				currentChar = myStateBoard[r][c];
-				if (currentChar == preChar) {
-					number++;					
-					if (number == 5 && currentChar > 10) {
-						return preChar; //the winer color
-					}
-				} else {
-					preChar = currentChar;
-					number = 1;					
-				}
-			}
-		}
-		return 'r'; //no winer -> ranable
-	}
+
 	/**
 	 * Call helper method to check the result of game.
 	 * 
@@ -76,28 +54,6 @@ public class GameBoard {
 		else if (result.contains("B") && !result.contains("W")) status = 'B';
 		return status;
 	}	
-
-	
-	/**
-	 * Rotate a block 90 degree numbererclockwise.
-	 * @param theBlock the block that will rotate.
-	 */
-	public void rotatenumbererClockwise(int theBlock) {
-		char temp;
-		int offsetRow = getOffsetRow(theBlock);
-		int offsetCol = getOffsetCol(theBlock);
-		temp = myStateBoard[offsetRow][offsetCol]; //move corner around
-		myStateBoard[offsetRow][offsetCol] = myStateBoard[offsetRow][offsetCol + 2];
-		myStateBoard[offsetRow][offsetCol + 2] = myStateBoard[2 + offsetRow][2 + offsetCol];
-		myStateBoard[2 + offsetRow][2 + offsetCol] = myStateBoard[offsetRow + 2][offsetCol];
-		myStateBoard[offsetRow + 2][offsetCol] = temp;
-		temp = myStateBoard[offsetRow][1 + offsetCol]; //move center of edges around
-		myStateBoard[offsetRow][1 + offsetCol] = myStateBoard[1 + offsetRow][offsetCol + 2];
-		myStateBoard[1 + offsetRow][offsetCol + 2] = myStateBoard[2 + offsetRow][1 + offsetCol];
-		myStateBoard[2 + offsetRow][1 + offsetCol] = myStateBoard[1 + offsetRow][offsetCol];
-		myStateBoard[1 + offsetRow][offsetCol] = temp;		
-	}
-	
 	/**
 	 * Rotate a block 90 degree clockwise.
 	 * @param theBlock the block that will rotate.
@@ -118,6 +74,27 @@ public class GameBoard {
 		myStateBoard[1 + offsetRow][2 + offsetCol] = temp;
 		
 	}
+	
+	/**
+	 * Rotate a block 90 degree counterclockwise.
+	 * @param theBlock the block that will rotate.
+	 */
+	public void rotateCounterClockwise(int theBlock) {
+		char temp;
+		int offsetRow = getOffsetRow(theBlock);
+		int offsetCol = getOffsetCol(theBlock);
+		temp = myStateBoard[offsetRow][offsetCol]; //move corner around
+		myStateBoard[offsetRow][offsetCol] = myStateBoard[offsetRow][offsetCol + 2];
+		myStateBoard[offsetRow][offsetCol + 2] = myStateBoard[2 + offsetRow][2 + offsetCol];
+		myStateBoard[2 + offsetRow][2 + offsetCol] = myStateBoard[offsetRow + 2][offsetCol];
+		myStateBoard[offsetRow + 2][offsetCol] = temp;
+		temp = myStateBoard[offsetRow][1 + offsetCol]; //move center of edges around
+		myStateBoard[offsetRow][1 + offsetCol] = myStateBoard[1 + offsetRow][offsetCol + 2];
+		myStateBoard[1 + offsetRow][offsetCol + 2] = myStateBoard[2 + offsetRow][1 + offsetCol];
+		myStateBoard[2 + offsetRow][1 + offsetCol] = myStateBoard[1 + offsetRow][offsetCol];
+		myStateBoard[1 + offsetRow][offsetCol] = temp;		
+	}
+
 	/**
 	 * Get the offset of the actual column base on the block format.
 	 * @param theBlock the block
@@ -145,7 +122,7 @@ public class GameBoard {
 		if (theDirection) {
 			rotateClockwise(theBlock);
 		} else {
-			rotatenumbererClockwise(theBlock);
+			rotateCounterClockwise(theBlock);
 		}
 	}
 	
@@ -474,6 +451,31 @@ public class GameBoard {
 		}
 		return 'r';
 	}
+	
+	/**
+	 * Check Rows to find a a color has 5 in a row. 	 * 
+	 * @return the color of winer or runable 'r'
+	 */
+	private char checkRow() {		
+		char preChar = 0, currentChar = 0;
+		int number = 1;
+		for (int r = 0; r < 6; r++) {
+			for (int c = 0; c < 6; c++) {
+				currentChar = myStateBoard[r][c];
+				if (currentChar == preChar) {
+					number++;					
+					if (number == 5 && currentChar > 10) {
+						return preChar; //the winer color
+					}
+				} else {
+					preChar = currentChar;
+					number = 1;					
+				}
+			}
+		}
+		return 'r'; //no winer -> ranable
+	}
+	
 	/**
 	 * Generate the future possibilities of game state.
 	 * @param isAlpha the alpha player.
